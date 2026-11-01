@@ -167,10 +167,52 @@ app.post('/api/data', (req, res) => {
   return res.status(201).json({ ok: true, received: reading });
 });
 
+const TIMEOUT_MS = 15000; // 15 seconds without packet = offline
+
+function isStationOnline(s) {
+  if (!s || !s.lastSeen) return false;
+  return (Date.now() - new Date(s.lastSeen).getTime()) < TIMEOUT_MS;
+}
+
+// Background heartbeat to monitor when stations disconnect
+setInterval(() => {
+  let changed = false;
+  Object.values(stations).forEach(s => {
+    const active = isStationOnline(s);
+    if (s.online !== active) {
+      s.online = active;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    const stationList = Object.values(stations).map(s => ({
+      ...s,
+      online: isStationOnline(s)
+    }));
+    const onlineStations = stationList.filter(s => s.online).length;
+    broadcast({
+      type: 'STATIONS_STATUS',
+      data: {
+        stations: stationList,
+        onlineStations,
+        totalStations: stationList.length,
+        onlineSensors: onlineStations * 3,
+        totalSensors: stationList.length * 3
+      }
+    });
+  }
+}, 3000);
+
 // Dashboard snapshot
 app.get('/api/snapshot', (req, res) => {
-  const stationList = Object.values(stations);
+  const stationList = Object.values(stations).map(s => ({
+    ...s,
+    online: isStationOnline(s)
+  }));
+  const onlineStations = stationList.filter(s => s.online).length;
   const totalSensors = stationList.length * 3; // ph, tds, turbidity per station
+  const onlineSensors = onlineStations * 3;
 
   // Overall WQI across all stations
   const wqiValues = Object.values(latest)
@@ -187,9 +229,9 @@ app.get('/api/snapshot', (req, res) => {
     alerts: alerts.filter(a => !a.acknowledged).slice(0, 20),
     summary: {
       totalStations: stationList.length,
-      onlineStations: stationList.filter(s => s.online).length,
+      onlineStations,
       totalSensors,
-      onlineSensors: totalSensors,
+      onlineSensors,
       overallWQI,
       overallLabel: overallWQI ? safetyLabel(overallWQI) : null,
       unacknowledgedAlerts: alerts.filter(a => !a.acknowledged).length,
@@ -229,7 +271,14 @@ app.get('/api/stations', (req, res) => {
 
 // WebSocket: send snapshot on connect
 wss.on('connection', ws => {
-  const stationList = Object.values(stations);
+  const stationList = Object.values(stations).map(s => ({
+    ...s,
+    online: isStationOnline(s)
+  }));
+  const onlineStations = stationList.filter(s => s.online).length;
+  const totalSensors = stationList.length * 3;
+  const onlineSensors = onlineStations * 3;
+
   const wqiValues = Object.values(latest).filter(r => r.wqi !== undefined).map(r => r.wqi);
   const overallWQI = wqiValues.length
     ? Math.round((wqiValues.reduce((a, b) => a + b, 0) / wqiValues.length) * 10) / 10
@@ -244,9 +293,9 @@ wss.on('connection', ws => {
       alerts: alerts.filter(a => !a.acknowledged).slice(0, 20),
       summary: {
         totalStations: stationList.length,
-        onlineStations: stationList.filter(s => s.online).length,
-        totalSensors: stationList.length * 3,
-        onlineSensors: stationList.length * 3,
+        onlineStations,
+        totalSensors,
+        onlineSensors,
         overallWQI,
         overallLabel: overallWQI ? safetyLabel(overallWQI) : null,
         unacknowledgedAlerts: alerts.filter(a => !a.acknowledged).length,

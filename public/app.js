@@ -23,6 +23,35 @@ let ws = null;
 let wsReconnectTimer = null;
 
 // ─── Helpers ────────────────────────────────────────────────────
+function isStationOnline(s) {
+  if (!s || !s.lastSeen) return false;
+  return (Date.now() - new Date(s.lastSeen).getTime()) < 15000;
+}
+
+function updateTopBarStatus() {
+  const stationList = Object.values(S.stations);
+  const onlineStations = stationList.filter(isStationOnline).length;
+  const totalStations = stationList.length;
+
+  const liveDot = document.getElementById('liveDot');
+  if (liveDot) {
+    const liveLabel = liveDot.querySelector('.live-label');
+    if (onlineStations > 0) {
+      liveDot.className = 'live-dot online';
+      if (liveLabel) liveLabel.textContent = `ESP32 Online (${onlineStations})`;
+    } else {
+      liveDot.className = 'live-dot offline';
+      if (liveLabel) liveLabel.textContent = 'ESP32 Offline';
+    }
+  }
+
+  const stnEl = document.getElementById('statusStations');
+  if (stnEl) stnEl.textContent = `${onlineStations}/${totalStations}`;
+
+  const sensEl = document.getElementById('statusSensors');
+  if (sensEl) sensEl.textContent = `${onlineStations * 3}/${totalStations * 3}`;
+}
+
 function timeAgo(iso) {
   if (!iso) return '—';
   const sec = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -169,7 +198,8 @@ function updateStatusBar({ overallWQI, stationIds } = {}) {
 
   document.getElementById('statusBadge').classList.toggle('hidden', !hasWarning);
   const safePill = document.getElementById('safeStatusPill');
-  safePill.style.display = (!hasWarning && stationIds?.length > 0) ? '' : 'none';
+  const onlineStations = Object.values(S.stations).filter(isStationOnline).length;
+  safePill.style.display = (!hasWarning && onlineStations > 0) ? '' : 'none';
 
   if (overallWQI !== null && overallWQI !== undefined) {
     const label = overallWQI >= 90 ? 'Excellent' : overallWQI >= 70 ? 'Good' : overallWQI >= 50 ? 'Fair' : 'Poor';
@@ -180,10 +210,7 @@ function updateStatusBar({ overallWQI, stationIds } = {}) {
     document.getElementById('statusLabel').textContent = '—';
   }
 
-  const total  = stationIds?.length || 0;
-  const online = total;
-  document.getElementById('statusStations').textContent = `${online}/${total}`;
-  document.getElementById('statusSensors').textContent  = `${online*3}/${total*3}`;
+  updateTopBarStatus();
 
   const lastTs = Object.values(S.latest).map(r => r.timestamp).filter(Boolean).sort().pop();
   document.getElementById('statusLastUpdate').textContent = lastTs ? timeAgo(lastTs) : '—';
@@ -402,6 +429,7 @@ function renderStationsPage() {
   grid.innerHTML = ids.map(sid => {
     const s = S.stations[sid];
     const r = S.latest[sid];
+    const online = isStationOnline(s);
     return `<div class="station-card">
       <div class="station-card-head">
         <div>
@@ -410,7 +438,7 @@ function renderStationsPage() {
         </div>
         <div>
           <span class="station-id">${sid}</span>
-          <div style="margin-top:6px"><span class="online-pill">● Online</span></div>
+          <div style="margin-top:6px">${online ? '<span class="online-pill">● Online</span>' : '<span class="offline-pill">● Offline</span>'}</div>
         </div>
       </div>
       ${r ? `
@@ -611,6 +639,24 @@ function handleMessage(msg) {
       if (ap === 'alerts') renderAlertsPage();
       break;
     }
+
+    case 'STATIONS_STATUS': {
+      const d = msg.data;
+      if (d.stations) {
+        d.stations.forEach(s => {
+          if (S.stations[s.id]) {
+            S.stations[s.id].online = s.online;
+            S.stations[s.id].lastSeen = s.lastSeen;
+          } else {
+            S.stations[s.id] = s;
+          }
+        });
+      }
+      updateTopBarStatus();
+      const activePage = document.querySelector('.nav-item.active')?.dataset.page;
+      if (activePage === 'stations') renderStationsPage();
+      break;
+    }
   }
 }
 
@@ -645,14 +691,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   connectWS();
 
-  // Refresh timestamps every 15s
+  // Periodically check station online status and refresh timestamps
   setInterval(() => {
-    document.getElementById('statusLastUpdate').textContent =
-      Object.values(S.latest).map(r => r.timestamp).filter(Boolean).sort().pop()
-      ? timeAgo(Object.values(S.latest).map(r => r.timestamp).filter(Boolean).sort().pop())
-      : '—';
-    document.querySelectorAll('.sensor-footer span:first-child').forEach(el => {
-      // timestamp is not directly accessible here; simpler update is fine
-    });
-  }, 15000);
+    updateTopBarStatus();
+    const lastTs = Object.values(S.latest).map(r => r.timestamp).filter(Boolean).sort().pop();
+    if (lastTs) {
+      document.getElementById('statusLastUpdate').textContent = timeAgo(lastTs);
+    }
+  }, 3000);
 });
