@@ -256,7 +256,7 @@ wss.on('connection', ws => {
   }));
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\nWater Community IoT Network — Server`);
   console.log(`Dashboard  : http://localhost:${PORT}`);
   console.log(`ESP32 POST : POST http://localhost:${PORT}/api/data`);

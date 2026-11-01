@@ -25,6 +25,7 @@
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <OneWire.h>
@@ -161,9 +162,19 @@ void sendData(float ph, float tds, float turbidity, float temperature) {
   serializeJson(doc, body);
 
   HTTPClient http;
-  http.begin(SERVER_URL);
+
+  if (strncmp(SERVER_URL, "https://", 8) == 0) {
+    WiFiClientSecure secClient;
+    secClient.setInsecure(); // Essential for Render HTTPS support without CA bundle
+    http.begin(secClient, SERVER_URL);
+  } else {
+    WiFiClient plainClient;
+    http.begin(plainClient, SERVER_URL);
+  }
+
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(5000);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setTimeout(10000); // 10s timeout accommodates Render cloud latency
 
   int code = http.POST(body);
   if (code == 201)
