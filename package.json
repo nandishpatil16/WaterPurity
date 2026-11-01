@@ -1,0 +1,26 @@
+{
+  "name": "community-water-quality-iot",
+  "version": "1.0.0",
+  "description": "Community Water Quality IoT Network - Real-time monitoring, analytics, and alert platform with ESP32 integration",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
+  "keywords": [
+    "iot",
+    "esp32",
+    "water-quality",
+    "ph-sensor",
+    "turbidity",
+    "tds",
+    "environmental-monitoring"
+  ],
+  "author": "AITM CSE Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "ws": "^8.17.0"
+  }
+}

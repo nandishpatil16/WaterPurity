@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Water Community IoT Network</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ SIDEBAR ══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">Water Community</span>
+      <span class="brand-sub">IOT NETWORK</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a href="#" class="nav-item" data-page="stations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      <span>Monitoring Stations</span>
+    </a>
+    <a href="#" class="nav-item" data-page="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Sensor Analytics</span>
+    </a>
+    <a href="#" class="nav-item" data-page="alerts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alerts</span>
+      <span class="nav-badge" id="navAlertCount">0</span>
+    </a>
+    <a href="#" class="nav-item" data-page="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Historical Data</span>
+    </a>
+    <a href="#" class="nav-item" data-page="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sf-title">Water Community IoT Network</div>
+    <div class="sf-sub">Community water quality monitoring</div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN ══ -->
+<main class="main-content">
+
+  <!-- ── Top Bar ── -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">Water Community IoT Network</h1>
+      <p class="page-sub">Real-time water quality monitoring across <span id="stationCount">0</span> community stations</p>
+    </div>
+    <div class="topbar-right">
+      <div class="live-dot" id="liveDot">
+        <span class="dot"></span>
+        <span class="live-label">Live</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pages ── -->
+
+  <!-- ── DASHBOARD PAGE ── -->
+  <div class="page active" id="page-dashboard">
+    
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div id="statusBadge" class="status-pill warning hidden">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3l9 16H3L12 5zm-1 6v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+        Warning
+      </div>
+      <div class="status-pill safe" id="safeStatusPill" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        All Safe
+      </div>
+      <div class="status-meta">
+        <span class="smeta"><span class="smeta-label">QUALITY SCORE</span> <strong id="statusWQI">—</strong> · <span id="statusLabel">—</span></span>
+        <span class="smeta"><span class="smeta-label">STATIONS</span> <strong id="statusStations">0/0</strong></span>
+        <span class="smeta"><span class="smeta-label">SENSORS ONLINE</span> <strong id="statusSensors">0/0</strong></span>
+        <span class="smeta"><span class="smeta-label">LAST UPDATE</span> <strong id="statusLastUpdate">—</strong></span>
+      </div>
+    </div>
+
+    <!-- Empty state (shown when no ESP32 connected) -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><circle cx="12" cy="10" r="3"/><path d="M6.17 18.83a8 8 0 0 1 11.66 0"/></svg>
+      </div>
+      <h3>Waiting for ESP32 sensor data</h3>
+      <p>No stations have sent data yet. Connect your ESP32 and it will appear here automatically.</p>
+      <code>POST http://&lt;server-ip&gt;:3000/api/data</code>
+    </div>
+
+    <!-- Sensor cards row -->
+    <div class="sensor-cards" id="sensorCards" style="display:none">
+      <!-- Filled dynamically -->
+    </div>
+
+    <!-- Bottom row: WQI gauge + Alerts -->
+    <div class="bottom-row" id="bottomRow" style="display:none">
+      
+      <!-- Overall WQI gauge -->
+      <div class="card wqi-card">
+        <div class="card-title">Overall Water Quality Score</div>
+        <div class="card-sub">Weighted from pH, TDS and turbidity against the configured <a href="#" class="link">limits</a>.</div>
+        <div class="gauge-wrapper">
+          <canvas id="gaugeCanvas" width="200" height="120"></canvas>
+          <div class="gauge-center">
+            <div class="gauge-value" id="gaugeValue">—</div>
+            <div class="gauge-unit">out of 100</div>
+            <div class="gauge-label" id="gaugeLabel">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts card -->
+      <div class="card alerts-card">
+        <div class="alerts-card-header">
+          <div>
+            <div class="card-title">Alerts &amp; Notifications</div>
+            <div class="alerts-count" id="alertsCount">0 conditions needing attention</div>
+          </div>
+          <a href="#" class="view-all-btn" data-page="alerts">View all</a>
+        </div>
+        <div class="alerts-list" id="dashAlertsList">
+          <div class="alerts-empty">No active alerts — all parameters within safe limits.</div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /dashboard -->
+
+  <!-- ── MONITORING STATIONS PAGE ── -->
+  <div class="page" id="page-stations">
+    <div class="inner-page-header">
+      <h2>Monitoring Stations</h2>
+      <p>Live status of all registered ESP32 sensor nodes.</p>
+    </div>
+    <div class="stations-grid" id="stationsGrid">
+      <div class="empty-state">
+        <div class="empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4"/></svg></div>
+        <h3>No stations registered yet</h3>
+        <p>Stations appear automatically when an ESP32 sends its first data packet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ALERTS PAGE ── -->
+  <div class="page" id="page-alerts">
+    <div class="inner-page-header">
+      <h2>Alerts &amp; Notifications</h2>
+      <p>All threshold breaches detected from sensor readings.</p>
+    </div>
+    <div class="alerts-full-list" id="alertsFullList">
+      <div class="empty-state" style="padding:40px 0">
+        <h3>No alerts</h3>
+        <p>All parameters are within safe limits.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SENSOR ANALYTICS PAGE ── -->
+  <div class="page" id="page-analytics">
+    <div class="inner-page-header">
+      <h2>Sensor Analytics</h2>
+      <p>Select a station and sensor to view its trend over the last 30 readings.</p>
+    </div>
+    <div class="analytics-controls">
+      <select id="analyticsStation" class="select-input">
+        <option value="">— Select Station —</option>
+      </select>
+      <select id="analyticsSensor" class="select-input">
+        <option value="ph">pH Level</option>
+        <option value="tds">Total Dissolved Solids</option>
+        <option value="turbidity">Turbidity</option>
+      </select>
+    </div>
+    <div class="card analytics-chart-card">
+      <canvas id="analyticsChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- ── HISTORICAL DATA PAGE ── -->
+  <div class="page" id="page-history">
+    <div class="inner-page-header">
+      <h2>Historical Data</h2>
+      <p>Recent readings log from all stations.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Station</th>
+            <th>pH</th>
+            <th>TDS (ppm)</th>
+            <th>Turbidity (NTU)</th>
+            <th>Temp (°C)</th>
+            <th>WQI</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody">
+          <tr><td colspan="8" class="empty-row">No data received yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS PAGE ── -->
+  <div class="page" id="page-settings">
+    <div class="inner-page-header">
+      <h2>Settings</h2>
+      <p>Configure safety thresholds and system parameters.</p>
+    </div>
+    <div class="settings-grid">
+      <div class="card settings-card">
+        <div class="settings-title">Safety Thresholds (IS 10500:2012)</div>
+        <div class="setting-row">
+          <label>pH Min <span class="setting-unit">pH</span></label>
+          <input type="number" id="set-ph-min" value="6.5" step="0.1" class="setting-input">
+        </div>
+        <div class="setting-row">
+          <label>pH Max <span class="setting-unit">pH</span></label>
+          <input type="number" id="set-ph-max" value="8.5" step="0.1" class="setting-input">
+        </div>
+        <div class="setting-row">
+          <label>TDS Max <span class="setting-unit">ppm</span></label>
+          <input type="number" id="set-tds-max" value="500" step="10" class="setting-input">
+        </div>
+        <div class="setting-row">
+          <label>Turbidity Max <span class="setting-unit">NTU</span></label>
+          <input type="number" id="set-turb-max" value="1.0" step="0.1" class="setting-input">
+        </div>
+        <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+      </div>
+      <div class="card settings-card">
+        <div class="settings-title">API Endpoints</div>
+        <div class="endpoint-row">
+          <span class="method post">POST</span>
+          <code id="apiEndpoint">/api/data</code>
+          <p class="endpoint-desc">ESP32 sends JSON: <code>{ stationId, ph, tds, turbidity, temperature }</code></p>
+        </div>
+        <div class="endpoint-row">
+          <span class="method get">GET</span>
+          <code>/api/snapshot</code>
+          <p class="endpoint-desc">Full dashboard state snapshot.</p>
+        </div>
+        <div class="endpoint-row">
+          <span class="method get">GET</span>
+          <code>/api/alerts</code>
+          <p class="endpoint-desc">All alerts (including acknowledged).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
