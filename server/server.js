@@ -167,7 +167,7 @@ app.post('/api/data', (req, res) => {
   return res.status(201).json({ ok: true, received: reading });
 });
 
-const TIMEOUT_MS = 15000; // 15 seconds without packet = offline
+const TIMEOUT_MS = 30000; // 30 seconds without packet = offline
 
 function isStationOnline(s) {
   if (!s || !s.lastSeen) return false;
@@ -269,8 +269,19 @@ app.get('/api/stations', (req, res) => {
   })));
 });
 
+// Keep-alive heartbeat: ping clients every 25s to keep Render / cloud reverse proxy alive
+setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    try { ws.ping(); } catch (_) {}
+  });
+}, 25000);
+
 // WebSocket: send snapshot on connect
 wss.on('connection', ws => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   const stationList = Object.values(stations).map(s => ({
     ...s,
     online: isStationOnline(s)

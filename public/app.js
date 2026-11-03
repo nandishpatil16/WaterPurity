@@ -24,8 +24,10 @@ let wsReconnectTimer = null;
 
 // ─── Helpers ────────────────────────────────────────────────────
 function isStationOnline(s) {
-  if (!s || !s.lastSeen) return false;
-  return (Date.now() - new Date(s.lastSeen).getTime()) < 15000;
+  if (!s) return false;
+  if (typeof s.online === 'boolean') return s.online;
+  if (!s.lastSeen) return false;
+  return (Date.now() - new Date(s.lastSeen).getTime()) < 30000;
 }
 
 function updateTopBarStatus() {
@@ -35,6 +37,7 @@ function updateTopBarStatus() {
 
   const liveDot = document.getElementById('liveDot');
   if (liveDot) {
+    liveDot.style.opacity = '1';
     const liveLabel = liveDot.querySelector('.live-label');
     if (onlineStations > 0) {
       liveDot.className = 'live-dot online';
@@ -138,28 +141,38 @@ const COLORS = {
 };
 
 function makeSparkline(canvasEl, sensor) {
+  if (typeof Chart === 'undefined') return null;
   const c = COLORS[sensor] || COLORS.ph;
-  return new Chart(canvasEl.getContext('2d'), {
-    type: 'line',
-    data: { labels: [], datasets: [{ data: [], borderColor: c.border, backgroundColor: c.bg, borderWidth: 1.8, pointRadius: 0, fill: true, tension: 0.35 }] },
-    options: {
-      responsive: false, maintainAspectRatio: false,
-      animation: { duration: 300 },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: {
-        x: { display: false },
-        y: { display: false },
-      },
-      elements: { line: { borderCapStyle: 'round' } }
-    }
-  });
+  try {
+    return new Chart(canvasEl.getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ data: [], borderColor: c.border, backgroundColor: c.bg, borderWidth: 1.8, pointRadius: 0, fill: true, tension: 0.35 }] },
+      options: {
+        responsive: false, maintainAspectRatio: false,
+        animation: { duration: 300 },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false },
+        },
+        elements: { line: { borderCapStyle: 'round' } }
+      }
+    });
+  } catch (err) {
+    console.warn('Sparkline initialization skipped:', err);
+    return null;
+  }
 }
 
 function updateSparkline(chart, histArr) {
   if (!chart || !histArr) return;
-  chart.data.labels   = histArr.map(p => '');
-  chart.data.datasets[0].data = histArr.map(p => p.value);
-  chart.update('none');
+  try {
+    chart.data.labels   = histArr.map(p => '');
+    chart.data.datasets[0].data = histArr.map(p => p.value);
+    chart.update('none');
+  } catch (err) {
+    // Ignore sparkline chart update errors
+  }
 }
 
 // ─── Render Dashboard ─────────────────────────────────────────────
@@ -544,20 +557,71 @@ function navigateTo(page) {
   if (page === 'history')  renderHistoryTable();
 }
 
+// ─── Data Sync (REST Snapshot + Polling Fallback) ──────────────────
+async function fetchSnapshot() {
+  try {
+    const res = await fetch('/api/snapshot');
+    if (!res.ok) return;
+    const d = await res.json();
+    if (d && d.stations) {
+      applySnapshotData(d);
+    }
+  } catch (err) {
+    console.warn('Snapshot fetch warning:', err);
+  }
+}
+
+function applySnapshotData(d) {
+  if (!d) return;
+  if (Array.isArray(d.stations)) {
+    d.stations.forEach(s => S.stations[s.id] = s);
+  }
+  S.latest  = d.latest || S.latest || {};
+  S.history = d.history || S.history || {};
+  S.alerts  = d.alerts || S.alerts || [];
+  S.limits  = d.limits || S.limits;
+
+  // Sync history table rows if empty
+  if (S.historyRows.length === 0 && d.latest) {
+    Object.values(d.latest).forEach(r => {
+      if (r && r.timestamp) S.historyRows.push(r);
+    });
+  }
+
+  renderDashboard();
+  updateTopBarStatus();
+
+  // Refresh active page if needed
+  const activePage = document.querySelector('.nav-item.active')?.dataset.page;
+  if (activePage === 'stations') renderStationsPage();
+  if (activePage === 'alerts')   renderAlertsPage();
+  if (activePage === 'history')  renderHistoryTable();
+}
+
 // ─── WebSocket ────────────────────────────────────────────────────
 function connectWS() {
   if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
 
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(`${proto}//${location.host}`);
+  try {
+    ws = new WebSocket(`${proto}//${location.host}`);
+  } catch (e) {
+    console.warn('WebSocket init error, relying on REST polling:', e);
+    wsReconnectTimer = setTimeout(connectWS, 4000);
+    return;
+  }
 
   ws.onopen = () => {
-    document.getElementById('liveDot').style.opacity = '1';
+    updateTopBarStatus();
   };
 
   ws.onclose = () => {
-    document.getElementById('liveDot').style.opacity = '.3';
-    wsReconnectTimer = setTimeout(connectWS, 3000);
+    updateTopBarStatus();
+    wsReconnectTimer = setTimeout(connectWS, 4000);
+  };
+
+  ws.onerror = () => {
+    // Rely on polling fallback and onclose reconnect
   };
 
   ws.onmessage = ({ data }) => {
@@ -571,20 +635,14 @@ function handleMessage(msg) {
   switch (msg.type) {
 
     case 'INIT': {
-      const d = msg.data;
-      d.stations.forEach(s => S.stations[s.id] = s);
-      S.latest  = d.latest || {};
-      S.history = d.history || {};
-      S.alerts  = d.alerts || [];
-      S.limits  = d.limits || S.limits;
-      renderDashboard();
+      applySnapshotData(msg.data);
       break;
     }
 
     case 'NEW_READING': {
       const r   = msg.data;
       const stn = msg.station;
-      S.stations[r.stationId] = stn || S.stations[r.stationId] || { id: r.stationId, name: r.stationId };
+      S.stations[r.stationId] = stn || S.stations[r.stationId] || { id: r.stationId, name: r.stationId, online: true };
       S.latest[r.stationId] = r;
 
       // Update history in-memory
@@ -626,7 +684,6 @@ function handleMessage(msg) {
     }
 
     case 'ALERTS_UPDATE': {
-      // Merge: keep acknowledged flags from current S.alerts
       const incoming = msg.data || [];
       incoming.forEach(a => {
         const existing = S.alerts.find(x => x.id === a.id);
@@ -695,10 +752,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('analyticsStation')?.addEventListener('change', renderAnalyticsChart);
   document.getElementById('analyticsSensor')?.addEventListener('change',  renderAnalyticsChart);
 
+  // 1. Initial empty render
   renderDashboard();
+
+  // 2. Fetch snapshot IMMEDIATELY via REST for instant dashboard display
+  fetchSnapshot();
+
+  // 3. Connect real-time WebSocket
   connectWS();
 
-  // Periodically check station online status and refresh timestamps
+  // 4. Background polling fallback every 3 seconds
+  // Ensures 100% reliability if WebSockets are slow, blocked, or restarting
+  setInterval(fetchSnapshot, 3000);
+
+  // 5. Periodically check station online status and refresh timestamps
   setInterval(() => {
     updateTopBarStatus();
     const lastTs = Object.values(S.latest).map(r => r.timestamp).filter(Boolean).sort().pop();
