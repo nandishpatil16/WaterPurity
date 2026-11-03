@@ -31,10 +31,8 @@
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";       // e.g. "JioFiber_5G" or "MyHotspot"
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // Your Wi-Fi password
 
-// Put your Render URL (or local PC IP) here:
-// If using Render: "https://your-service-name.onrender.com/api/data"
-// If testing on Local PC: "http://10.250.228.44:3000/api/data"
-const char* SERVER_URL    = "https://YOUR-APP-NAME.onrender.com/api/data";
+// Put your Render URL:
+const char* SERVER_URL    = "https://waterpurity.onrender.com/api/data";
 
 // Station metadata
 const char* STATION_ID    = "ST01";
