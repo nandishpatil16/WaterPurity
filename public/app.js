@@ -188,7 +188,7 @@ function renderDashboard() {
   document.getElementById('stationCount').textContent = stationIds.length;
 
   if (!hasData) {
-    updateStatusBar(null);
+    updateStatusBar();
     return;
   }
 
@@ -205,7 +205,8 @@ function renderDashboard() {
   renderDashAlerts();
 }
 
-function updateStatusBar({ overallWQI, stationIds } = {}) {
+function updateStatusBar(opts) {
+  const { overallWQI, stationIds } = opts || {};
   const unacked = S.alerts.filter(a => !a.acknowledged);
   const hasWarning = unacked.length > 0;
 
