@@ -672,6 +672,13 @@ function saveSettings() {
 // ─── Bootstrap ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
 
+  // Auto-fill exact endpoint URL for ESP32
+  const exactApiUrl = `${window.location.origin}/api/data`;
+  const hintEl = document.getElementById('hintUrl');
+  if (hintEl) hintEl.textContent = exactApiUrl;
+  const apiEp = document.getElementById('apiEndpoint');
+  if (apiEp) apiEp.textContent = exactApiUrl;
+
   // Nav click handlers
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); navigateTo(el.dataset.page); });

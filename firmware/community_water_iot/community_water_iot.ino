@@ -188,21 +188,31 @@ void sendDataToServer(float ph, float tds, float turbidity, float temp) {
   Serial.print("[HTTP] Payload: ");
   Serial.println(jsonBody);
 
+  // Validate SERVER_URL format
+  if (strstr(SERVER_URL, "YOUR-APP-NAME") != NULL) {
+    Serial.println("\n[CONFIG ERROR] You must change 'YOUR-APP-NAME' in SERVER_URL to your real Render app URL!");
+    return;
+  }
+  if (strstr(SERVER_URL, "/api/data") == NULL) {
+    Serial.println("\n[CONFIG ERROR] SERVER_URL must end with '/api/data'!");
+    return;
+  }
+
   HTTPClient http;
+  WiFiClientSecure secureClient;
+  WiFiClient plainClient;
   bool isHttps = (strncmp(SERVER_URL, "https://", 8) == 0);
 
   if (isHttps) {
-    WiFiClientSecure secureClient;
     secureClient.setInsecure(); // Critical: Bypasses SSL CA cert checks for Render cloud
     http.begin(secureClient, SERVER_URL);
   } else {
-    WiFiClient plainClient;
     http.begin(plainClient, SERVER_URL);
   }
 
   http.addHeader("Content-Type", "application/json");
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.setTimeout(12000); // 12 seconds timeout accommodates Render cold-starts
+  http.setTimeout(20000); // 20s timeout accommodates Render cold-starts
 
   int httpCode = http.POST(jsonBody);
 
@@ -244,6 +254,13 @@ void setup() {
 
   analogReadResolution(12);       // 12-bit ADC (0 - 4095)
   analogSetAttenuation(ADC_11db); // Allow full 0 - 3.3V range on analog pins
+
+  Serial.print("Station ID   : "); Serial.println(STATION_ID);
+  Serial.print("Target Server: "); Serial.println(SERVER_URL);
+
+  if (strstr(SERVER_URL, "YOUR-APP-NAME") != NULL) {
+    Serial.println("\n[!] WARNING: You must replace 'YOUR-APP-NAME' with your real Render URL!");
+  }
 
   connectWiFi();
 }
